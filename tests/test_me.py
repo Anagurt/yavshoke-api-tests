@@ -1,36 +1,25 @@
 import requests
 import uuid
+from config import BASE_URL
+from schemas import VALID_PASSWORD, VALID_TOKEN, EXIST_USER_PAYLOAD
 
+# Позитивный тест на получение информации о пользователе
 def test_get_user_me_success():
-    # Получаем токен
-    url_register = "http://localhost:3000/auth/register"
-    email = f"user_{uuid.uuid4().hex[:8]}@example.com"
-    password = "TestPassword123"
-    payload = {
-        "email": email,
-        "password": password,
-        "age": 25
-    }
-    requests.post(url_register, json=payload)
-    url_login = "http://localhost:3000/auth/login"
-    login_payload = {
-        "email": email,
-        "password": password
-    }
-    login_response = requests.post(url_login, json=login_payload)
-    token = login_response.json()["token"]
-
     # GET /user/me с токеном
-    url_me = "http://localhost:3000/user/me"
-    headers = {"Authorization": f"Bearer {token}"}
+    url_me = f"{BASE_URL}/user/me"
+    headers = {"Authorization": f"Bearer {VALID_TOKEN}"}
     response = requests.get(url_me, headers=headers)
-    assert response.status_code == 200
-
+    assert response.status_code == 200, (
+        f"Ожидался 200, получен {response.status_code}, тело: {response.text}"
+    )
     data = response.json()
     assert "user" in data
-    assert data["user"]["email"] == email
+    assert data["user"]["email"] == EXIST_USER_PAYLOAD["email"]
 
+# Негативный тест на получение информации о пользователе
 def test_get_user_me_unauthorized():
-    url_me = "http://localhost:3000/user/me"
+    url_me = f"{BASE_URL}/user/me"
     response = requests.get(url_me)  # без Authorization
-    assert response.status_code == 401 
+    assert response.status_code == 401, (
+        f"Ожидался 401, получен {response.status_code}, тело: {response.text}"
+    ) 

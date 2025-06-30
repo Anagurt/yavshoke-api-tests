@@ -1,37 +1,70 @@
 import requests
 import uuid
+import random
+from config import BASE_URL
+from schemas import EXIST_USER_PAYLOAD, VALID_PASSWORD
 
-def test_login_existing_user():
-    # Сначала регистрируем пользователя
-    url_register = "http://localhost:3000/auth/register"
-    email = f"user_{uuid.uuid4().hex[:8]}@example.com"
-    password = "TestPassword123"
-    payload = {
-        "email": email,
-        "password": password,
-        "age": 25
-    }
-    response = requests.post(url_register, json=payload)
-    assert response.status_code in [200, 201]
-
-    # Теперь логинимся этим пользователем
-    url_login = "http://localhost:3000/auth/login"
+# Позитивный тест на логин существующего пользователя
+def test_login_existing_user_direct():
+    url_login = f"{BASE_URL}/auth/login"
     login_payload = {
-        "email": email,
-        "password": password
+        "email": EXIST_USER_PAYLOAD["email"],
+        "password": VALID_PASSWORD
     }
-    login_response = requests.post(url_login, json=login_payload)
-    assert login_response.status_code == 200
-    data = login_response.json()
+    response = requests.post(url_login, json=login_payload)
+    assert response.status_code == 200, (
+        f"Ожидался 200, получен {response.status_code}, тело: {response.text}"
+    )
+    data = response.json()
     assert "token" in data
     assert "user" in data
-    assert data["user"]["email"] == email
+    assert data["user"]["email"] == EXIST_USER_PAYLOAD["email"]
 
+# Негативные тесты на логин пользователя
 def test_login_nonexistent_user():
-    url_login = "http://localhost:3000/auth/login"
+    url_login = f"{BASE_URL}/auth/login"
     login_payload = {
-        "email": f"random_{uuid.uuid4().hex[:8]}@example.com",  # точно несуществующий email
-        "password": "WrongPassword123"
+        "email": f"random_{uuid.uuid4().hex[:8]}@example.com",  # несуществующий email
+        "password": VALID_PASSWORD
     }
     login_response = requests.post(url_login, json=login_payload)
-    assert login_response.status_code == 422
+    assert login_response.status_code == 422, (
+        f"Ожидался 422, получен {login_response.status_code}, тело: {login_response.text}"
+    )
+
+def test_login_wrong_password():
+    url_login = f"{BASE_URL}/auth/login"
+    login_payload = {
+        "email": EXIST_USER_PAYLOAD["email"],
+        "password": "wrongpassword"
+    }
+    response = requests.post(url_login, json=login_payload)
+    assert response.status_code in (400, 401, 422), (
+        f"Ожидался 400, 401 или 422, получен {response.status_code}, тело: {response.text}"
+    )
+
+def test_login_empty_email_and_password():
+    url_login = f"{BASE_URL}/auth/login"
+    login_payload = {
+        "email": "",
+        "password": ""
+    }
+    response = requests.post(url_login, json=login_payload)
+    assert response.status_code in (400, 422), (
+        f"Ожидался 400 или 422, получен {response.status_code}, тело: {response.text}"
+    )
+
+def test_login_invalid_email_format():
+    url_login = f"{BASE_URL}/auth/login"
+    special_chars = ''.join(random.choices('!@#$%^&*()[]{};:,.<>?/\\|`~', k=8))
+    email = f"{special_chars}.ru"
+    login_payload = {
+        "email": email,
+        "password": VALID_PASSWORD
+    }
+    response = requests.post(url_login, json=login_payload)
+    assert response.status_code in (400, 422), (
+        f"Ожидался 400 или 422, получен {response.status_code}, тело: {response.text}"
+    )
+
+
